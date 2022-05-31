@@ -24,6 +24,7 @@
                             name="aws_bucket"
                             attrs="{'required': [('backend_type', '=', 'amazon_s3')]}"
                         />
+                        <field name="validated" />
                         <field name="aws_cache_control" />
                         <field name="aws_file_acl" />
                     </group>

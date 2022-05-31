@@ -21,10 +21,6 @@ except ImportError as err:  # pragma: no cover
     _logger.debug(err)
 
 
-# Keep track of existing buckets and avoid checking for them every time.
-EXISTING_BUCKETS = []
-
-
 class S3StorageAdapter(Component):
     _name = "s3.adapter"
     _inherit = "base.storage.adapter"
@@ -50,6 +46,7 @@ class S3StorageAdapter(Component):
         s3 = boto3.resource("s3", **params)
         bucket_name = self.collection.aws_bucket
         bucket = self._get_or_create_bucket(s3, bucket_name, **params)
+        self.collection.validated = True
         return bucket
 
     def _get_or_create_bucket(self, s3, bucket_name, **params):
@@ -60,19 +57,17 @@ class S3StorageAdapter(Component):
         else:
             create_params = self._get_create_bucket_params(bucket_name, params)
             bucket = s3.create_bucket(**create_params)
+            self.collection.validated = True
         return bucket
 
-    def _check_bucket_exists(self, s3, bucket_name):
-        if bucket_name in EXISTING_BUCKETS:
-            # If the bucket is not available later
-            # we'll have an error on each call of course
-            # but that does not happen often
-            # and in any case you will get what's wrong soon.
+    def _check_bucket_exists(self, s3, bucket_name, force=False):
+        if force is False and self.collection.validated:
             return True
+        # if test is ok, set the flag
         try:
             s3.meta.client.head_bucket(Bucket=bucket_name)
             # The call above is expensive, avoid it when possible.
-            EXISTING_BUCKETS.append(bucket_name)
+            self.collection.validated = True
             return True
         except ClientError as e:
             # If a client error is thrown, then check that it was a 404 error.
@@ -146,3 +141,8 @@ class S3StorageAdapter(Component):
     def delete(self, relative_path):
         s3object = self._get_object(relative_path)
         s3object.delete()
+
+    def validate_config(self, **params):
+        s3 = boto3.resource("s3", **params)
+        bucket_name = self.collection.aws_bucket
+        self.validated = self._check_bucket_exists(s3, bucket_name)
