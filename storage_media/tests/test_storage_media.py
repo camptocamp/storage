@@ -10,10 +10,15 @@ class StorageMediaCase(TransactionComponentCase):
         super(StorageMediaCase, self).setUp()
         self.backend = self.env.ref("storage_backend.default_storage_backend")
         self.filename = "test of my_file.txt"
+        self.media_type = self.env.ref("storage_media.storage_media_type_iso")
 
     def test_onchange_name(self):
         media = self.env["storage.media"].create(
-            {"name": self.filename, "backend_id": self.backend.id}
+            {
+                "name": self.filename,
+                "backend_id": self.backend.id,
+                "media_type_id": self.media_type.id,
+            }
         )
         self.assertEqual(media.name, self.filename)
         new_filename = "new file name.txt"
