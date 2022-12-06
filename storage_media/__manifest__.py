@@ -22,7 +22,7 @@
         "security/ir.model.access.csv",
     ],
     "demo": [
-        "data/storage_type.xml",
+        "demo/storage_type.xml",
     ],
     "qweb": [],
 }
