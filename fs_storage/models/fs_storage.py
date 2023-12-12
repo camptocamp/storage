@@ -101,16 +101,13 @@ class FSStorage(models.Model):
         "For example, for the sftp protocol, you can provide the following:\n"
         "{\n"
         "    'host': 'my.sftp.server',\n"
-        "    'ssh_kwrags': {\n"
-        "        'username': 'myuser',\n"
-        "        'password': 'mypassword',\n"
-        "        'port': 22,\n"
-        "    }\n"
+        "    'username': 'myuser',\n"
+        "    'password': 'mypassword',\n"
+        "    'port': 22,\n"
         "}\n"
         "For more information, please refer to the fsspec documentation:\n"
-        "https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations"
+        "https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations",
     )
-
     json_options = Serialized(
         help="The options used to initialize the filesystem.\n",
         compute="_compute_json_options",
