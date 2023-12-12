@@ -203,14 +203,15 @@ class FSStorage(models.Model):
 
     @api.model
     def _get_protocols(self) -> list[tuple[str, str]]:
-        protocol = [("odoofs", "Odoo's FileSystem")]
+        odoo_protocol = [("odoofs", "Odoo's FileSystem")]
+        protocols = []
         for p in fsspec.available_protocols():
             try:
                 cls = fsspec.get_filesystem_class(p)
-                protocol.append((p, f"{p} ({cls.__name__})"))
+                protocols.append((p, f"{p} ({cls.__name__})"))
             except ImportError as e:
                 _logger.debug("Cannot load the protocol %s. Reason: %s", p, e)
-        return protocol
+        return odoo_protocol + sorted(protocols, key=lambda x: x[1])
 
     @api.constrains("options")
     def _check_options(self) -> None:
