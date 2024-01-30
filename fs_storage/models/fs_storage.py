@@ -353,6 +353,17 @@ class FSStorage(models.Model):
             return options
         return self._eval_options_from_env(self.json_options)
 
+    def _get_marker_file_name(self):
+        return ".odoo_fs_storage_%s.marker" % self.id
+
+    def _check_connection(self, fs=False):
+        if not fs:
+            fs = self.fs
+        marker_file_name = self._get_marker_file_name()
+        if not fs.ls(marker_file_name, detail=False):
+            fs.touch(marker_file_name)
+        return True
+
     def _get_filesystem(self) -> fsspec.AbstractFileSystem:
         """Get the fsspec filesystem for this backend.
 
@@ -390,6 +401,14 @@ class FSStorage(models.Model):
         directory_path = self.directory_path
         if directory_path:
             fs = fsspec.filesystem("rooted_dir", path=directory_path, fs=fs)
+        if not tools.config["test_enable"]:
+            # Check whether we need to invalidate FS cache or not.
+            # Use a marker file to limit the scope of the LS command for performance.
+            try:
+                self._check_connection(fs)
+            except Exception as e:
+                fs.clear_instance_cache()
+                raise e
         return fs
 
     def _detect_ssh_private_key_type(self, pkey_file):
@@ -488,7 +507,7 @@ class FSStorage(models.Model):
 
     def action_test_config(self) -> None:
         try:
-            self.fs.ls("", detail=False)
+            self._check_connection()
             title = _("Connection Test Succeeded!")
             message = _("Everything seems properly set up!")
             msg_type = "success"
