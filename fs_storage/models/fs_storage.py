@@ -284,6 +284,7 @@ class FSStorage(models.Model):
     def fs(self) -> fsspec.AbstractFileSystem:
         """Get the fsspec filesystem for this backend."""
         self.ensure_one()
+        return self._get_filesystem()
         if not self.__fs:
             self.__fs = self._get_filesystem()
         return self.__fs
