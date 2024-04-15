@@ -46,6 +46,8 @@ class ProductMediaRelation(models.Model):
 
     sequence = fields.Integer()
     media_id = fields.Many2one("storage.media", required=True)
+    # Just to gray out relations in the tree view on the product
+    active = fields.Boolean(related="media_id.active")
     attribute_value_ids = fields.Many2many(
         "product.attribute.value", string="Attributes"
     )
