@@ -14,6 +14,11 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. module: storage_media
+#: model:ir.model.fields,help:storage_media.field_storage_media__url_path
+msgid "Accessible path, no base URL"
+msgstr ""
+
+#. module: storage_media
 #: model:ir.model.fields,field_description:storage_media.field_storage_media__active
 msgid "Active"
 msgstr ""
@@ -47,12 +52,8 @@ msgstr ""
 
 #. module: storage_media
 #: model:ir.model.fields,field_description:storage_media.field_storage_media__data
-msgid "Data"
-msgstr ""
-
-#. module: storage_media
 #: model:ir.model.fields,help:storage_media.field_storage_media__data
-msgid "Datas"
+msgid "Data"
 msgstr ""
 
 #. module: storage_media
@@ -192,7 +193,6 @@ msgstr ""
 #: model:ir.model,name:storage_media.model_storage_media
 #: model:ir.ui.menu,name:storage_media.storage_media_menu
 #: model_terms:ir.ui.view,arch_db:storage_media.storage_media_view_form
-#: model_terms:ir.ui.view,arch_db:storage_media.storage_media_view_tree
 msgid "Storage Media"
 msgstr ""
 
@@ -207,7 +207,6 @@ msgstr ""
 #: model:ir.ui.menu,name:storage_media.menu_storage_media_type
 #: model_terms:ir.ui.view,arch_db:storage_media.storage_media_type_view_form
 #: model_terms:ir.ui.view,arch_db:storage_media.storage_media_type_view_search
-#: model_terms:ir.ui.view,arch_db:storage_media.storage_media_type_view_tree
 msgid "Storage Media Type"
 msgstr ""
 
@@ -219,4 +218,9 @@ msgstr ""
 #. module: storage_media
 #: model:ir.model.fields,field_description:storage_media.field_storage_media__url
 msgid "Url"
+msgstr ""
+
+#. module: storage_media
+#: model:ir.model.fields,field_description:storage_media.field_storage_media__url_path
+msgid "Url Path"
 msgstr ""
