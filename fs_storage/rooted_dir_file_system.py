@@ -27,6 +27,16 @@ class RootedDirFileSystem(DirFileSystem):
         # we need to normalize the path separator.
         path_posix = os.path.normpath(make_path_posix(path, self.sep))
         root_posix = os.path.normpath(make_path_posix(self.path))
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("########################## CHECK THIS PATH 2 #############################")
+        logger.info(root_posix)
+        logger.info(path_posix)
+        logger.info("########################## CHECK THIS PATH 3 #############################")
+        full_path = os.path.abspath(root_posix)
+        logger.info(full_path)
+        a_path = os.path.abspath(path_posix)
+        logger.info(a_path)
         if not path_posix.startswith(root_posix):
             raise PermissionError(
                 "Path %s is not a subpath of the root path %s" % (path, self.path)
