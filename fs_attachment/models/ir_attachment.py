@@ -20,7 +20,7 @@ from slugify import slugify  # pylint: disable=missing-manifest-dependency
 import odoo
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError
-from odoo.osv.expression import AND, OR, normalize_domain
+from odoo.fields import Domain
 
 from .strtobool import strtobool
 
@@ -169,9 +169,9 @@ class IrAttachment(models.Model):
         for mimetype_key, limit in storage_config.items():
             part = [("mimetype", "=like", f"{mimetype_key}%")]
             if limit:
-                part = AND([part, [("file_size", "<=", limit)]])
+                part = Domain.AND([part, [("file_size", "<=", limit)]])
             # OR simplifies to [(1, '=', 1)] if a domain being OR'ed is empty
-            domain = OR([domain, part]) if domain else part
+            domain = Domain.OR([domain, part]) if domain else part
         return domain
 
     def _store_in_db_instead_of_object_storage(self, data, mimetype):
@@ -762,9 +762,9 @@ class IrAttachment(models.Model):
             )
             return
 
-        domain = AND(
+        domain = Domain.AND(
             (
-                normalize_domain(
+                Domain.normalize_domain(
                     [
                         ("store_fname", "=like", f"{storage}://%"),
                         # for res_field, see comment in
@@ -774,7 +774,7 @@ class IrAttachment(models.Model):
                         ("res_field", "!=", False),
                     ]
                 ),
-                normalize_domain(self._store_in_db_instead_of_object_storage_domain()),
+                Domain.normalize_domain(self._store_in_db_instead_of_object_storage_domain()),
             )
         )
 
