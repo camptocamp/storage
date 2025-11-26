@@ -4,7 +4,7 @@ import logging
 import threading
 from contextlib import closing, contextmanager
 
-from odoo import api, fields, models
+from odoo import api, fields, models, modules
 from odoo.sql_db import Cursor
 
 _logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class FsFileGC(models.Model):
         """
         return (
             getattr(threading.current_thread(), "testing", False)
-            or self.env.registry.in_test_mode()
+            or modules.module.current_test
         )
 
     @contextmanager
