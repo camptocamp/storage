@@ -76,5 +76,8 @@ class StorageFileSwapBackend(models.TransientModel):
             raise UserError(self.env._("Please select a destination storage."))
         if self.dest_backend_id == self.source_backend_id:
             raise UserError(self.env._("Destination storage must differ from source."))
-        self.file_ids._swap_backend(self.dest_backend_id)
+        self._action_apply()
         return {"type": "ir.actions.act_window_close"}
+
+    def _action_apply(self):
+        self.file_ids._swap_backend(self.dest_backend_id)
