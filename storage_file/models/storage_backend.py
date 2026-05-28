@@ -145,7 +145,9 @@ class StorageBackend(models.Model):
     def _get_url_for_file(self, storage_file, exclude_base_url=False):
         """Return final full URL for given file."""
         backend = self.sudo()
-        if backend.served_by == "odoo":
+        if backend.served_by == "odoo" or (
+            backend.served_by == "external" and not backend.base_url
+        ):
             parts = [
                 self._get_base_url_from_param() if not exclude_base_url else "/",
                 "storage.file",
