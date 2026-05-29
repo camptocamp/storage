@@ -15,7 +15,7 @@ class StorageFile(models.Model):
         """
         dest_backend = self.env["storage.backend"].browse(dest_backend_id)
         if not dest_backend.exists():
-            return _(
+            return self.env._(
                 "Destination backend id=%(backend_id)d no longer exists.",
                 backend_id=dest_backend_id,
             )
