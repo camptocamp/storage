@@ -123,7 +123,8 @@ class TestSwapBackendQueue(TransactionComponentCase):
             "add",
             side_effect=RuntimeError("upload failed"),
         ):
-            result = stfile._swap_backend_job(self.backend_b.id)
+            with mute_logger("odoo.addons.storage_file.models.storage_file"):
+                result = stfile._swap_backend_job(self.backend_b.id)
         self.assertIn("Failed (1):", result)
         self.assertIn("upload failed", result)
 
