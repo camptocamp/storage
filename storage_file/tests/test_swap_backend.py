@@ -109,12 +109,7 @@ class TestSwapBackend(TransactionComponentCase):
             ) as log_cm:
                 result = stfile._swap_backend(self.backend_b)
         self.assertTrue(
-            any(
-                "Failed to delete" not in msg or "boom" not in msg
-                for msg in log_cm.output
-            )
-            or any("boom" in msg for msg in log_cm.output),
-            log_cm.output,
+            any("failed to delete" in msg and "boom" in msg for msg in log_cm.output)
         )
         # File still counts as moved
         self.assertEqual(len(result["moved"]), 1)
