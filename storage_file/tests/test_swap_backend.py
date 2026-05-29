@@ -89,6 +89,9 @@ class TestSwapBackend(TransactionComponentCase):
                 result = stfile._swap_backend(self.backend_b)
         self.assertEqual(len(result["failed"]), 1)
         self.assertIn("boom", result["failed"][0])
+        self.assertTrue(
+            any("Failed to swap file" in msg and "boom" in msg for msg in log_cm.output)
+        )
         # Old file still physically present.
         self.assertEqual(
             self.backend_a.sudo().get(old_relative_path, binary=True), b"payload"
