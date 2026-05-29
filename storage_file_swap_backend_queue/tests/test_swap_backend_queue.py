@@ -49,7 +49,6 @@ class TestSwapBackendQueue(TransactionComponentCase):
             # Perform them to verify they actually work
             trap.perform_enqueued_jobs()
         self.assertTrue(all(f.backend_id == self.backend_b for f in files))
-            result = stfile._swap_backend_job(self.backend_b.id)
 
     def test_wizard_single_batch(self):
         """A small recordset creates a single job."""
