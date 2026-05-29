@@ -83,7 +83,10 @@ class TestSwapBackend(TransactionComponentCase):
             "add",
             side_effect=RuntimeError("boom"),
         ):
-            result = stfile._swap_backend(self.backend_b)
+            with self.assertLogs(
+                "odoo.addons.storage_file.models.storage_file", level="ERROR"
+            ) as log_cm:
+                result = stfile._swap_backend(self.backend_b)
         self.assertEqual(len(result["failed"]), 1)
         self.assertIn("boom", result["failed"][0])
         # Old file still physically present.
