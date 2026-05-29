@@ -44,9 +44,9 @@ class StorageFileSwapBackend(models.TransientModel):
             raise UserError(
                 self.env._(
                     "All selected records must belong to the same source "
-                    "storage backend. Found: %s"
+                    "storage backend. Found: %s",
+                    ", ".join(backends.mapped("name")),
                 )
-                % ", ".join(backends.mapped("name"))
             )
         res["source_backend_id"] = backends.id
         res["file_ids"] = [(6, 0, files.ids)]

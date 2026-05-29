@@ -243,9 +243,9 @@ class StorageFile(models.Model):
             raise UserError(
                 self.env._(
                     "The filename strategy is empty for the backend %s.\n"
-                    "Please configure it."
+                    "Please configure it.",
+                    new_backend.name,
                 )
-                % new_backend.name
             )
         moved = []
         failed = []
