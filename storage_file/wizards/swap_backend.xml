@@ -11,7 +11,12 @@
                 <sheet>
                     <group>
                         <field name="source_backend_id" readonly="1" />
-                        <field name="dest_backend_id" required="1" />
+                        <field name="allowed_dest_backend_ids" invisible="1" />
+                        <field
+                            name="dest_backend_id"
+                            required="1"
+                            domain="[('id', 'in', allowed_dest_backend_ids.ids)]"
+                        />
                     </group>
                     <group string="Files to swap" name="files">
                         <field name="file_ids" nolabel="1" required="1">
