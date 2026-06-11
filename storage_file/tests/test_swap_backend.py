@@ -74,6 +74,33 @@ class TestSwapBackend(TransactionComponentCase):
         with self.assertRaisesRegex(UserError, "The filename strategy is empty"):
             stfile._swap_backend(self.backend_b)
 
+    def test_swap_rejects_different_backend_category(self):
+        src_categ = self.env["storage.backend.category"].create({"name": "SRC"})
+        dst_categ = self.env["storage.backend.category"].create({"name": "DST"})
+        self.backend_a.categ_id = src_categ
+        self.backend_b.categ_id = dst_categ
+        stfile = self._create_storage_file(backend=self.backend_a)
+
+        with self.assertRaisesRegex(
+            UserError, "Destination backend category must match source backend category"
+        ):
+            stfile._swap_backend(self.backend_b)
+
+    def test_swap_allows_different_backend_category_with_bypass(self):
+        src_categ = self.env["storage.backend.category"].create({"name": "SRC"})
+        dst_categ = self.env["storage.backend.category"].create({"name": "DST"})
+        self.backend_a.categ_id = src_categ
+        self.backend_b.categ_id = dst_categ
+        stfile = self._create_storage_file(backend=self.backend_a, data=b"payload")
+
+        result = stfile.with_context(
+            swap_backend_bypass_category_check=True
+        )._swap_backend(self.backend_b)
+
+        self.assertEqual(stfile.backend_id, self.backend_b)
+        self.assertEqual(base64.b64decode(stfile.data), b"payload")
+        self.assertIn(stfile.name, result["moved"][0])
+
     def test_swap_failure_reports_in_failed(self):
         """Upload failure is caught and reported in the failed list."""
         stfile = self._create_storage_file(data=b"payload")
@@ -204,3 +231,116 @@ class TestSwapBackend(TransactionComponentCase):
         stfile.backend_id = self.backend_a
         self.assertEqual(stfile.backend_id, self.backend_a)
         self.assertEqual(stfile.relative_path, old_path)
+
+    # -- category-based filtering ----------------------------------------
+
+    def test_wizard_computes_allowed_backends_by_category(self):
+        """Allowed destination backends are filtered by source backend category."""
+        # Create categories
+        categ = self.env["storage.backend.category"].create({"name": "Group A"})
+        categ2 = self.env["storage.backend.category"].create({"name": "Group B"})
+
+        # Create backends in different categories
+        backend_a_cat = self.backend_a.copy(
+            {
+                "name": "Backend A (Group A)",
+                "categ_id": categ.id,
+                "directory_path": "a_cat",
+            }
+        )
+        backend_b_cat = self.backend_b.copy(
+            {
+                "name": "Backend B (Group A)",
+                "categ_id": categ.id,
+                "directory_path": "b_cat",
+            }
+        )
+        backend_other = self.backend_a.copy(
+            {
+                "name": "Backend (Group B)",
+                "categ_id": categ2.id,
+                "directory_path": "other",
+            }
+        )
+
+        # Create wizard
+        wizard = self.env["storage.file.swap.backend"].create(
+            {
+                "source_backend_id": backend_a_cat.id,
+                "file_ids": [(6, 0, [])],
+            }
+        )
+
+        # Compute should filter to same category
+        self.assertIn(backend_b_cat, wizard.allowed_dest_backend_ids)
+        self.assertNotIn(backend_other, wizard.allowed_dest_backend_ids)
+        self.assertNotIn(backend_a_cat, wizard.allowed_dest_backend_ids)
+
+    def test_wizard_allows_all_when_source_has_no_category(self):
+        """Wizard allows all backends when source has no category."""
+        backend_cat = self.backend_b.copy(
+            {
+                "name": "Backend (Cat)",
+                "categ_id": self.env["storage.backend.category"]
+                .create({"name": "Cat"})
+                .id,
+                "directory_path": "cat",
+            }
+        )
+
+        # Create wizard with uncategorized source backend
+        wizard = self.env["storage.file.swap.backend"].create(
+            {
+                "source_backend_id": self.backend_a.id,
+                "file_ids": [(6, 0, [])],
+            }
+        )
+
+        # All backends except source should be available
+        self.assertIn(self.backend_b, wizard.allowed_dest_backend_ids)
+        self.assertIn(backend_cat, wizard.allowed_dest_backend_ids)
+        self.assertNotIn(self.backend_a, wizard.allowed_dest_backend_ids)
+
+    def test_wizard_form_respects_allowed_backends_domain(self):
+        """Form domain correctly restricts destination to allowed backends."""
+        # Create category and categorized backends
+        categ = self.env["storage.backend.category"].create({"name": "Group A"})
+        backend_a_cat = self.backend_a.copy(
+            {
+                "name": "Backend A (Group A)",
+                "categ_id": categ.id,
+                "directory_path": "a_cat",
+            }
+        )
+        backend_b_cat = self.backend_b.copy(
+            {
+                "name": "Backend B (Group A)",
+                "categ_id": categ.id,
+                "directory_path": "b_cat",
+            }
+        )
+
+        stfile = self._create_storage_file(backend=backend_a_cat)
+
+        # Test Form creation with proper category-based filtering
+        with Form(
+            self.env["storage.file.swap.backend"].with_context(
+                active_model="storage.file",
+                active_ids=stfile.ids,
+            )
+        ) as wiz_form:
+            # Source should be set by default_get
+            self.assertEqual(wiz_form.source_backend_id, backend_a_cat)
+            # Should only be able to select backend_b_cat (same category)
+            allowed = wiz_form.allowed_dest_backend_ids
+            self.assertIn(backend_b_cat, allowed)
+            self.assertNotIn(backend_a_cat, allowed)
+            # Should be able to set destination
+            wiz_form.dest_backend_id = backend_b_cat
+
+        # Verify wizard was created with correct values
+        wizard = self.env["storage.file.swap.backend"].search(
+            [], order="id desc", limit=1
+        )
+        self.assertEqual(wizard.source_backend_id, backend_a_cat)
+        self.assertEqual(wizard.dest_backend_id, backend_b_cat)
