@@ -292,18 +292,6 @@ class StorageFile(models.Model):
                     new_backend.name,
                 )
             )
-        if not self.env.context.get("swap_backend_bypass_category_check"):
-            for record in self.sudo():
-                if not record.exists() or record.backend_id == new_backend:
-                    continue
-                if record.backend_id.categ_id != new_backend.categ_id:
-                    raise UserError(
-                        self.env._(
-                            "Destination backend category must match source backend "
-                            "category for %s.",
-                            record.name,
-                        )
-                    )
         moved = self.env["storage.file"]
         for record in self.sudo():
             if not record.exists():
