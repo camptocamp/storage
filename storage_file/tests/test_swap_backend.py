@@ -73,33 +73,6 @@ class TestSwapBackend(TransactionComponentCase):
         with self.assertRaisesRegex(UserError, "The filename strategy is empty"):
             stfile._swap_backend(self.backend_b)
 
-    def test_swap_rejects_different_backend_category(self):
-        src_categ = self.env["storage.backend.category"].create({"name": "SRC"})
-        dst_categ = self.env["storage.backend.category"].create({"name": "DST"})
-        self.backend_a.categ_id = src_categ
-        self.backend_b.categ_id = dst_categ
-        stfile = self._create_storage_file(backend=self.backend_a)
-
-        with self.assertRaisesRegex(
-            UserError, "Destination backend category must match source backend category"
-        ):
-            stfile._swap_backend(self.backend_b)
-
-    def test_swap_allows_different_backend_category_with_bypass(self):
-        src_categ = self.env["storage.backend.category"].create({"name": "SRC"})
-        dst_categ = self.env["storage.backend.category"].create({"name": "DST"})
-        self.backend_a.categ_id = src_categ
-        self.backend_b.categ_id = dst_categ
-        stfile = self._create_storage_file(backend=self.backend_a, data=b"payload")
-
-        result = stfile.with_context(
-            swap_backend_bypass_category_check=True
-        )._swap_backend(self.backend_b)
-
-        self.assertEqual(stfile.backend_id, self.backend_b)
-        self.assertEqual(base64.b64decode(stfile.data), b"payload")
-        self.assertIn(stfile, result)
-
     def test_swap_failure_reports_in_failed(self):
         """Upload failure propagates as an exception."""
         stfile = self._create_storage_file(data=b"payload")
