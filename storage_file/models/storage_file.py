@@ -279,8 +279,7 @@ class StorageFile(models.Model):
 
         Files already on ``new_backend`` are skipped.
 
-        :return: dict with ``moved`` (list of names) and ``failed`` (list of
-            error descriptions).
+        :return: recordset of files that were successfully swapped.
         """
         if not new_backend:
             raise UserError(self.env._("A destination storage is required."))
@@ -293,63 +292,55 @@ class StorageFile(models.Model):
                     new_backend.name,
                 )
             )
-        moved = []
-        failed = []
+        if not self.env.context.get("swap_backend_bypass_category_check"):
+            for record in self.sudo():
+                if not record.exists() or record.backend_id == new_backend:
+                    continue
+                if record.backend_id.categ_id != new_backend.categ_id:
+                    raise UserError(
+                        self.env._(
+                            "Destination backend category must match source backend "
+                            "category for %s.",
+                            record.name,
+                        )
+                    )
+        moved = self.env["storage.file"]
         for record in self.sudo():
             if not record.exists():
-                failed.append(f"ID {record.id}: record no longer exists")
                 continue
             if record.backend_id == new_backend:
                 continue
             old_backend = record.backend_id
             old_relative_path = record.relative_path
-            try:
-                if not old_relative_path:
-                    record.with_context(
-                        storage_file_swap_backend=True
-                    ).backend_id = new_backend
-                    moved.append(f"{record.name} (ID {record.id})")
-                    continue
-                bin_data = old_backend.get(old_relative_path, binary=True)
-                # Same logic as _build_relative_path but using the target
-                # backend strategy (backend_id not yet reassigned).
-                strategy = new_backend.filename_strategy
-                if strategy == "hash":
-                    new_relative_path = record.checksum[:2] + "/" + record.checksum
-                else:
-                    new_relative_path = record.slug
-                new_backend.add(
-                    new_relative_path,
-                    bin_data,
-                    mimetype=record.mimetype,
-                    binary=True,
-                )
-                record.with_context(storage_file_swap_backend=True).write(
-                    {
-                        "backend_id": new_backend.id,
-                        "relative_path": new_relative_path,
-                    }
-                )
-                try:
-                    old_backend.delete(old_relative_path)
-                except Exception as exc:
-                    _logger.warning(
-                        "Swapped %s but failed to delete old file %s from %s: %s",
-                        record.name,
-                        old_relative_path,
-                        old_backend.name,
-                        exc,
-                    )
-                moved.append(f"{record.name} (ID {record.id})")
-            except Exception as exc:
-                failed.append(f"{record.name} (ID {record.id}): {exc}")
-                _logger.exception(
-                    "Failed to swap file %s (ID %d) to backend %s",
-                    record.name,
-                    record.id,
-                    new_backend.name,
-                )
-        return {"moved": moved, "failed": failed}
+            if not old_relative_path:
+                record.with_context(
+                    storage_file_swap_backend=True
+                ).backend_id = new_backend
+                moved |= record
+                continue
+            bin_data = old_backend.get(old_relative_path, binary=True)
+            # Same logic as _build_relative_path but using the target
+            # backend strategy (backend_id not yet reassigned).
+            strategy = new_backend.filename_strategy
+            if strategy == "hash":
+                new_relative_path = record.checksum[:2] + "/" + record.checksum
+            else:
+                new_relative_path = record.slug
+            new_backend.add(
+                new_relative_path,
+                bin_data,
+                mimetype=record.mimetype,
+                binary=True,
+            )
+            record.with_context(storage_file_swap_backend=True).write(
+                {
+                    "backend_id": new_backend.id,
+                    "relative_path": new_relative_path,
+                }
+            )
+            old_backend.delete(old_relative_path)
+            moved |= record
+        return moved
 
     @api.model
     def get_from_slug_name_with_id(self, slug_name_with_id):

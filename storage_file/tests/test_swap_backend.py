@@ -38,12 +38,12 @@ class TestSwapBackend(TransactionComponentCase):
     def test_swap_uploads_to_new_backend_and_updates_record(self):
         stfile = self._create_storage_file(data=b"payload")
 
-        result = stfile._swap_backend(self.backend_b)
+        moved = stfile._swap_backend(self.backend_b)
 
         self.assertEqual(stfile.backend_id, self.backend_b)
         self.assertEqual(stfile.relative_path, f"my_file-{stfile.id}.txt")
         self.assertEqual(base64.b64decode(stfile.data), b"payload")
-        self.assertIn(stfile.name, result["moved"][0])
+        self.assertIn(stfile, moved)
 
     def test_swap_deletes_old_file(self):
         stfile = self._create_storage_file(data=b"payload")
@@ -57,11 +57,10 @@ class TestSwapBackend(TransactionComponentCase):
         with mock.patch.object(
             type(self.env["storage.backend"]), "delete"
         ) as mocked_delete:
-            result = stfile._swap_backend(self.backend_b)
+            moved = stfile._swap_backend(self.backend_b)
             mocked_delete.assert_not_called()
         self.assertEqual(stfile.backend_id, self.backend_b)
-        self.assertEqual(result["moved"], [])
-        self.assertEqual(result["failed"], [])
+        self.assertFalse(moved)
 
     def test_swap_requires_destination(self):
         stfile = self._create_storage_file()
@@ -74,8 +73,35 @@ class TestSwapBackend(TransactionComponentCase):
         with self.assertRaisesRegex(UserError, "The filename strategy is empty"):
             stfile._swap_backend(self.backend_b)
 
+    def test_swap_rejects_different_backend_category(self):
+        src_categ = self.env["storage.backend.category"].create({"name": "SRC"})
+        dst_categ = self.env["storage.backend.category"].create({"name": "DST"})
+        self.backend_a.categ_id = src_categ
+        self.backend_b.categ_id = dst_categ
+        stfile = self._create_storage_file(backend=self.backend_a)
+
+        with self.assertRaisesRegex(
+            UserError, "Destination backend category must match source backend category"
+        ):
+            stfile._swap_backend(self.backend_b)
+
+    def test_swap_allows_different_backend_category_with_bypass(self):
+        src_categ = self.env["storage.backend.category"].create({"name": "SRC"})
+        dst_categ = self.env["storage.backend.category"].create({"name": "DST"})
+        self.backend_a.categ_id = src_categ
+        self.backend_b.categ_id = dst_categ
+        stfile = self._create_storage_file(backend=self.backend_a, data=b"payload")
+
+        result = stfile.with_context(
+            swap_backend_bypass_category_check=True
+        )._swap_backend(self.backend_b)
+
+        self.assertEqual(stfile.backend_id, self.backend_b)
+        self.assertEqual(base64.b64decode(stfile.data), b"payload")
+        self.assertIn(stfile, result)
+
     def test_swap_failure_reports_in_failed(self):
-        """Upload failure is caught and reported in the failed list."""
+        """Upload failure propagates as an exception."""
         stfile = self._create_storage_file(data=b"payload")
         old_relative_path = stfile.relative_path
         with mock.patch.object(
@@ -83,36 +109,23 @@ class TestSwapBackend(TransactionComponentCase):
             "add",
             side_effect=RuntimeError("boom"),
         ):
-            with self.assertLogs(
-                "odoo.addons.storage_file.models.storage_file", level="ERROR"
-            ) as log_cm:
-                result = stfile._swap_backend(self.backend_b)
-        self.assertEqual(len(result["failed"]), 1)
-        self.assertIn("boom", result["failed"][0])
-        self.assertTrue(
-            any("Failed to swap file" in msg and "boom" in msg for msg in log_cm.output)
-        )
-        # Old file still physically present.
+            with self.assertRaises(RuntimeError, msg="boom"):
+                stfile._swap_backend(self.backend_b)
+        # Record must remain on the original backend (no partial state).
+        self.assertEqual(stfile.backend_id, self.backend_a)
         self.assertEqual(
             self.backend_a.sudo().get(old_relative_path, binary=True), b"payload"
         )
 
-    def test_swap_swallows_old_backend_delete_error(self):
+    def test_swap_old_backend_delete_failure_raises(self):
         stfile = self._create_storage_file(data=b"payload")
         with mock.patch.object(
             type(self.env["storage.backend"]),
             "delete",
             side_effect=RuntimeError("boom"),
         ):
-            with self.assertLogs(
-                "odoo.addons.storage_file.models.storage_file", level="WARNING"
-            ) as log_cm:
-                result = stfile._swap_backend(self.backend_b)
-        self.assertTrue(
-            any("failed to delete" in msg and "boom" in msg for msg in log_cm.output)
-        )
-        # File still counts as moved
-        self.assertEqual(len(result["moved"]), 1)
+            with self.assertRaises(RuntimeError, msg="boom"):
+                stfile._swap_backend(self.backend_b)
 
     # -- wizard ----------------------------------------------------------------
 
