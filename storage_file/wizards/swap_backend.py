@@ -19,10 +19,11 @@ class StorageFileSwapBackend(models.TransientModel):
         string="Source Storage",
         readonly=True,
     )
-    allowed_dest_backend_ids = fields.Many2many(
-        "storage.backend",
-        string="Allowed Destination Backends",
-        compute="_compute_allowed_dest_backend_ids",
+    source_backend_categ_id = fields.Many2one(
+        "storage.backend.category",
+        related="source_backend_id.categ_id",
+        string="Source Backend Category",
+        readonly=True,
     )
     dest_backend_id = fields.Many2one(
         "storage.backend",
@@ -33,16 +34,6 @@ class StorageFileSwapBackend(models.TransientModel):
         string="Files",
         domain="[('backend_id', '=', source_backend_id)]",
     )
-
-    @api.depends("source_backend_id")
-    def _compute_allowed_dest_backend_ids(self):
-        """Compute available destination backends based on source backend category."""
-        for wizard in self:
-            domain = [("id", "!=", wizard.source_backend_id.id)]
-            if wizard.source_backend_id.categ_id:
-                # If source has a category, restrict to same category
-                domain.append(("categ_id", "=", wizard.source_backend_id.categ_id.id))
-            wizard.allowed_dest_backend_ids = self.env["storage.backend"].search(domain)
 
     @api.model
     def default_get(self, fields_list):

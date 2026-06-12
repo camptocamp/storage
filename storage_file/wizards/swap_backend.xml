@@ -15,11 +15,11 @@
                             readonly="1"
                             options="{'no_open': True, 'no_create': True}"
                         />
-                        <field name="allowed_dest_backend_ids" invisible="1" />
+                        <field name="source_backend_categ_id" invisible="1" />
                         <field
                             name="dest_backend_id"
                             required="1"
-                            domain="[('id', 'in', allowed_dest_backend_ids)]"
+                            domain="[('id', '!=', source_backend_id), ('categ_id', '=', source_backend_categ_id)]"
                             options="{'no_open': True, 'no_create': True}"
                         />
                     </group>

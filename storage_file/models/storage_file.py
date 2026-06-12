@@ -36,6 +36,12 @@ class StorageFile(models.Model):
         required=True,
         default=lambda self: self._get_default_backend_id(),
     )
+    backend_categ_id = fields.Many2one(
+        "storage.backend.category",
+        related="backend_id.categ_id",
+        string="Backend Category",
+        readonly=True,
+    )
     url = fields.Char(compute="_compute_url", help="HTTP accessible path to the file")
     url_path = fields.Char(
         compute="_compute_url_path", help="Accessible path, no base URL"
