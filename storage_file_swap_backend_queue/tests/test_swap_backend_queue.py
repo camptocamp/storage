@@ -5,8 +5,6 @@
 import base64
 from unittest import mock
 
-from odoo.tools import mute_logger
-
 from odoo.addons.component.tests.common import TransactionComponentCase
 from odoo.addons.queue_job.tests.common import trap_jobs
 
@@ -108,47 +106,43 @@ class TestSwapBackendQueue(TransactionComponentCase):
         self.assertIn("Nothing to swap", result)
 
     def test_job_handles_missing_record(self):
-        """Deleted records between enqueue and execution are reported."""
+        """Deleted records between enqueue and execution are silently skipped."""
         stfile = self._create_storage_file(data=b"payload")
         file_id = stfile.id
         stfile.with_context(cleanning_storage_file=True).unlink()
         records = self.env["storage.file"].browse(file_id)
         result = records._swap_backend_job(self.backend_b.id)
-        self.assertIn("no longer exists", result)
+        self.assertIn("Nothing to swap", result)
 
     def test_job_handles_upload_failure(self):
-        """Upload failures are caught and reported."""
+        """Upload failures propagate as exception and fail the job."""
         stfile = self._create_storage_file(data=b"payload")
         with mock.patch.object(
             type(self.env["storage.backend"]),
             "add",
             side_effect=RuntimeError("upload failed"),
         ):
-            with mute_logger("odoo.addons.storage_file.models.storage_file"):
-                result = stfile._swap_backend_job(self.backend_b.id)
-        self.assertIn("Failed (1):", result)
-        self.assertIn("upload failed", result)
+            with self.assertRaises(RuntimeError, msg="upload failed"):
+                stfile._swap_backend_job(self.backend_b.id)
 
     def test_job_handles_missing_backend(self):
-        """If dest backend is deleted, the job returns an error message."""
-        stfile = self._create_storage_file(data=b"payload")
-        result = stfile._swap_backend_job(99999)
-        self.assertIn("no longer exists", result)
+        """If dest backend is deleted, the job raises UserError."""
+        from odoo.exceptions import UserError
 
-    @mute_logger("odoo.addons.storage_file.models.storage_file")
-    def test_job_old_delete_failure_still_counts_as_moved(self):
-        """Failure to delete old file doesn't prevent success."""
-        # logger muted to avoid warnings (and CI failure) w/ msg like
-        # Swapped my_file.txt but failed to delete old file... delete failed
+        stfile = self._create_storage_file(data=b"payload")
+        with self.assertRaisesRegex(UserError, "no longer exists"):
+            stfile._swap_backend_job(99999)
+
+    def test_job_old_delete_failure_raises(self):
+        """Failure to delete old file causes the swap to fail."""
         stfile = self._create_storage_file(data=b"payload")
         with mock.patch.object(
             type(self.env["storage.backend"]),
             "delete",
             side_effect=RuntimeError("delete failed"),
         ):
-            result = stfile._swap_backend_job(self.backend_b.id)
-        self.assertIn(f"Moved to {self.backend_b.name} (1):", result)
-        self.assertEqual(stfile.backend_id, self.backend_b)
+            with self.assertRaises(RuntimeError, msg="delete failed"):
+                stfile._swap_backend_job(self.backend_b.id)
 
     def test_wizard_use_queue_flag_from_backend(self):
         """Wizard use_queue is preset from source backend flag."""

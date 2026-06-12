@@ -17,7 +17,7 @@ class StorageFileSwapBackend(models.TransientModel):
     )
 
     def _action_apply(self):
-        """Override to dispatch swap via queue jobs instead of synchronous."""
+        # Override to dispatch swap via queue jobs instead of synchronously.
         if not self.use_queue:
             return super()._action_apply()
         batch_size = int(
